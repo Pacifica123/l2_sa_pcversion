@@ -91,14 +91,34 @@ pub fn write_corr_table_to_csv(correlations: &Vec<CorrelationResult>, filename: 
 
 
 
-
 pub fn print_correlation_results(results: &Vec<CorrelationResult>) {
+    let mut unique_results = HashSet::new();
+    let mut formatted_results: Vec<(String, String, f64)> = Vec::new();
+
+    // Фильтруем повторяющиеся пары
+    for result in results {
+        let (col_x, col_y) = if result.column_x < result.column_y {
+            (result.column_x.clone(), result.column_y.clone())
+        } else {
+            (result.column_y.clone(), result.column_x.clone())
+        };
+        
+        if unique_results.insert((col_x.clone(), col_y.clone())) {
+            formatted_results.push((col_x, col_y, result.correlation));
+        }
+    }
+
+    // Определяем ширину столбцов
+    let max_col_x_len = formatted_results.iter().map(|(x, _, _)| x.len()).max().unwrap_or(0);
+    let max_col_y_len = formatted_results.iter().map(|(_, y, _)| y.len()).max().unwrap_or(0);
+    
     // Заголовок таблицы
-    println!("{:<20} {:<20} {:<15}", "Column X", "Column Y", "Correlation");
-    println!("{}", "-".repeat(55)); // Разделительная линия
+    println!("{:<width_x$} {:<width_y$} {:<15}", "Column X", "Column Y", "Correlation", width_x = max_col_x_len + 2, width_y = max_col_y_len + 2);
+    println!("{}", "-".repeat(max_col_x_len + max_col_y_len + 32)); // Разделительная линия
 
     // Выводим результаты
-    for result in results {
-        println!("{:<20} {:<20} {:<15.4}", result.column_x, result.column_y, result.correlation);
+    for (col_x, col_y, correlation) in formatted_results {
+        println!("{:<width_x$} {:<width_y$} {:<15.4}", col_x, col_y, correlation, width_x = max_col_x_len + 2, width_y = max_col_y_len + 2);
+        println!("{}", "-".repeat(max_col_x_len + max_col_y_len + 32)); // Пунктирная линия между строками
     }
-}
+}       
