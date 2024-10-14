@@ -122,3 +122,10 @@ pub fn print_correlation_results(results: &Vec<CorrelationResult>) {
         println!("{}", "-".repeat(max_col_x_len + max_col_y_len + 32)); // Пунктирная линия между строками
     }
 }       
+
+pub fn print_student_coeffs(results: &Vec<f64>, corrs_for_res: &Vec<CorrelationResult>){
+    for i in 0..results.len(){
+        let combined_columns = format!("{} {}", corrs_for_res[i].column_x, corrs_for_res[i].column_y);
+        println!("{} : {}", combined_columns, results[i])
+    }
+}

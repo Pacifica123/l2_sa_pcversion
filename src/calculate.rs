@@ -1,4 +1,4 @@
-use crate::{clinning::CsvModel, utils};
+use crate::{clinning::CsvModel, utils::{self, sum_xy_for_corr}};
 
 #[derive(Clone)]
 pub struct CorrelationResult {
@@ -22,23 +22,25 @@ pub fn calculate_correlation(data: &CsvModel) -> Vec<CorrelationResult> {
             let column_y: Vec<f64> = rows.iter().map(|row| row.get(&headers[j]).cloned().unwrap_or_default()).collect();
 
             // Рассчитываем коэффициент корреляции
-            let x_mean = utils::mean(&column_x);
-            let y_mean = utils::mean(&column_y);
             let sx = utils::std_dev(&column_x);
             let sy = utils::std_dev(&column_y);
 
-            // Расчет корреляции r
-            let numerator: f64 = column_x.iter()
-                .zip(&column_y)
-                .map(|(x, y)| (x - x_mean) * (y - y_mean))
-                .sum();
-            let denominator = (sx * sy) * (column_x.len() as f64);
+            // Проверка на нулевое стандартное отклонение
+            if sx == 0.0 || sy == 0.0 {
+                println!("Одно из стандартных отклонений равно нулю: sx = {}, sy = {}", sx, sy);
+                continue; // Пропускаем итерацию
+            }
 
-            let correlation = if denominator != 0.0 {
-                numerator / denominator
-            } else {
-                0.0
-            };
+            // Расчет корреляции r
+            let numerator: f64 = sum_xy_for_corr(&column_x, &column_y);
+            let denominator = sx * sy * column_x.len() as f64;
+            // Проверка на нулевое значение в знаменателе
+            if denominator == 0.0 {
+                println!("Знаменатель равен нулю: {}", denominator);
+                continue; // Пропускаем итерацию
+            }
+
+            let correlation = numerator / denominator;
 
             // Сохраняем результат
             results.push(CorrelationResult {
@@ -102,20 +104,17 @@ pub fn calculate_filter_independent_factors(
                 if is_same_corr {
                     if corr.correlation.abs() > mutual_threshold {
                         if factor_a.correlation.abs() < factor_b.correlation.abs() {
-                            if factor_a.column_x == target {
-                                println!("Помечаем фактор {} на удаление", factor_a.column_y);    
-                            } else {
-                                println!("Помечаем фактор {} на удаление", factor_a.column_x);
-                            }
+                            println!("Помечаем фактор {} -- {} на удаление", factor_a.column_x, factor_a.column_y);
+                            // if factor_a.column_x == target {
+                            //     println!("Помечаем фактор {} на удаление", factor_a.column_y);    
+                            // } else {
+                            //     println!("Помечаем фактор {} на удаление", factor_a.column_x);
+                            // }
                             
                             factors_to_remove.push(i);  // Помечаем фактор A на удаление
                             break;  // Прекращаем проверку этой пары
                         } else {
-                            if factor_a.column_x == target {
-                                println!("Помечаем фактор {} на удаление", factor_b.column_y);    
-                            } else {
-                                println!("Помечаем фактор {} на удаление", factor_b.column_x);
-                            }
+                            println!("Помечаем фактор {} -- {} на удаление", factor_b.column_x, factor_b.column_y);
                             factors_to_remove.push(j);  // Помечаем фактор B на удаление
                             break;  // Прекращаем проверку этой пары
                         }
@@ -139,3 +138,23 @@ pub fn calculate_filter_independent_factors(
     final_factors
 }
 
+/// Подсчитывает критерий Стьюдента для определения значимости фактора
+pub fn calculate_student_t(rxy: f64) -> f64{
+    (rxy.powi(2)/(1.0-rxy.powi(2))*4.0).sqrt()
+}
+
+/// Функция для обработки вектора корреляций и получения списка результатов
+pub fn calculate_student_t_for_correlations(correlations: &Vec<CorrelationResult>) -> Vec<f64> {
+    correlations.iter()
+        .map(|cor| calculate_student_t(cor.correlation))
+ 
+        .collect()
+}
+
+
+
+
+pub fn calculate_a(target_name: &str, target_corr_i: f64, inner_corr: f64, target_corr_another: f64){
+    let a_fund = (target_corr_i - inner_corr*target_corr_another) / (1.0 - inner_corr.powi(2));
+    
+}
